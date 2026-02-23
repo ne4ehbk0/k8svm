@@ -21,6 +21,7 @@ tests/integration/*-chart-*.tgz
 # ansible-test generated file
 tests/integration/inventory
 tests/integration/*-*.yml
+group_vars/vms_cluster/passwd.yaml
 
 # VS Code settings
 .vscode/
