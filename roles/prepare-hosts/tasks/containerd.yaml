@@ -3,9 +3,9 @@
   ansible.builtin.deb822_repository:
     name: docker
     types: [deb]
-    uris: "https://download.docker.com/linux/{{ ansible_distribution | lower }}"
-    signed_by: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
-    suites: ["{{ ansible_distribution_release | lower }}"]
+    uris: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}"
+    signed_by: "https://download.docker.com/linux/{{ ansible_facts['distribution'] | lower }}/gpg"
+    suites: ["{{ ansible_facts['lsb']['codename'] | lower }}"]
     components: [stable]
     state: present
     enabled: true
@@ -17,15 +17,29 @@
     update_cache: true
     state: present
 
+- name: Check current containerd config version
+  ansible.builtin.shell:
+    cmd: grep -E '^version\s*=' /etc/containerd/config.toml 2>/dev/null || echo "version = 0"
+  register: current_version
+  changed_when: false
+
 - name: Configure containerD from default
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      sudo containerd config default | sudo tee /etc/containerd/config.toml
+      sudo containerd config default | sudo tee /etc/containerd/config.toml > /deb/null
       grep version /etc/containerd/config.toml
     executable: /bin/bash
   register: config_rez
-  changed_when: config_rez != 'version = 2'
+  changed_when: "current_version.stdout not in config_rez.stdout"
+
+- name: Check current SystemdCgroup value
+  ansible.builtin.shell:
+    cmd: |
+      grep 'SystemdCgroup = true' /etc/containerd/config.toml | cut -d '=' -f2 \
+      || echo "false"
+  register: current_cgroups_value
+  changed_when: false
 
 - name: Add cgroup v2 [config.toml]
   ansible.builtin.shell:
@@ -35,10 +49,11 @@
       grep 'SystemdCgroup = true' /etc/containerd/config.toml | cut -d '=' -f2
     executable: /bin/bash
   register: cgroup_rez
-  changed_when: cgroup_rez != ' true'
+  changed_when: cgroup_rez | trim != current_cgroups_value | trim
+
 
 - name: Enable and start Containerd service
   ansible.builtin.service:
     name: containerd
     state: restarted
-    enabled: true
+    enabled: yes

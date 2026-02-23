@@ -40,6 +40,9 @@ nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.26.0"
 ## Change only if this IP is already taken.
 nodelocaldns_local_ip: 169.254.25.10
 
+### GatewayAPI CDR
+GatewayAPICDRVersion: "v1.4.1"
+
 ### MetalLB
 ### https://metallb.universe.tf/
 ### Важно! Перед использованием закажите кластерные IP адреса,
@@ -53,6 +56,9 @@ metallbChartVersion: "v0.15.3"
 # Сеть - 192.168.1.64/30
 metallbAddresses:
 - 192.168.125.86-192.168.125.90
+
+### Envoy
+envoyVersion: "v1.7.0"
 
 ###################################
 # CNI
@@ -93,7 +99,8 @@ kubeadmin_config: /etc/kubernetes/kubeadm.conf
 
 ### Helm
 ### Install only on 1-st control node
-helmVersion: v4.1.1
+# helmVersion: v4.1.1
+helmVersion: v3.20.0
 
 ### Cert-manager
 ### https://github.com/cert-manager/cert-manager

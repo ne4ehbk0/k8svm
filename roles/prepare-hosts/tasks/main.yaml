@@ -73,7 +73,11 @@
       sudo swapon --show --noheadings | wc -l
     executable: /bin/bash
   register: swap_ret
-  changed_when: swap_ret != 0
+  changed_when: swap_ret == 0
+
+- name: Show 'swap_ret'
+  debug:
+    msg: "The result in 'swap_ret': {{ swap_ret.stdout }} "
 
 - name: If swap is enabled - disable it
   ansible.builtin.shell:
@@ -84,6 +88,11 @@
   register: swapoff_ret
   when: swap_ret.stdout != "0"
   changed_when: swapoff_ret != 0
+
+- name: Show 'swapoff_ret'
+  when: swap_ret.stdout != "0"
+  debug:
+    msg: "The result in 'swapoff_ret': {{ swapoff_ret.stdout }} "
 
 - name: Disable SWAP in fstab
   when: swap_ret.stdout != "0"
