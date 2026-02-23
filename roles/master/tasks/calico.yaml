@@ -1,0 +1,31 @@
+- name: Init master control node
+  ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+  register: kubeadm_init
+
+- name: Install Utils
+  ansible.builtin.include_tasks: utils.yaml
+
+- name: Check for installed tigera-operator
+  ansible.builtin.command: kubectl get ns tigera-operator
+  register: tigera_operator_out
+  ignore_errors: true
+
+- name: Install tigera-operator
+  when: tigera_operator_out.rc == 1
+  ansible.builtin.shell: "kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ tigera_operator_version }}/manifests/tigera-operator.yaml"
+
+- name: Wait for tigera-operator CRDs to be ready
+  ansible.builtin.shell: |
+    kubectl wait --for condition=established --timeout=60s crd/installations.operator.tigera.io
+  register: crd_wait
+  retries: 5
+  delay: 10
+  until: crd_wait.rc == 0
+
+- name: Copy calico-install.yaml
+  template:
+    src: calico-install.j2
+    dest: /etc/kubernetes/calico-install.yaml
+
+- name: Install Calico
+  ansible.builtin.command: kubectl apply -f /etc/kubernetes/calico-install.yaml

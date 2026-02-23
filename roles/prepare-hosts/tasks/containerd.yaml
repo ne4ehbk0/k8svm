@@ -1,0 +1,44 @@
+---
+- name: Add Docker Module Repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "https://download.docker.com/linux/{{ ansible_distribution | lower }}"
+    signed_by: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    suites: ["{{ ansible_distribution_release | lower }}"]
+    components: [stable]
+    state: present
+    enabled: true
+
+- name: Install containerD from apt
+  ansible.builtin.apt:
+    pkg:
+      - containerd.io
+    update_cache: true
+    state: present
+
+- name: Configure containerD from default
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      sudo containerd config default | sudo tee /etc/containerd/config.toml
+      grep version /etc/containerd/config.toml
+    executable: /bin/bash
+  register: config_rez
+  changed_when: config_rez != 'version = 2'
+
+- name: Add cgroup v2 [config.toml]
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      sudo sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml
+      grep 'SystemdCgroup = true' /etc/containerd/config.toml | cut -d '=' -f2
+    executable: /bin/bash
+  register: cgroup_rez
+  changed_when: cgroup_rez != ' true'
+
+- name: Enable and start Containerd service
+  ansible.builtin.service:
+    name: containerd
+    state: restarted
+    enabled: true

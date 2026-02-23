@@ -1,0 +1,26 @@
+---
+- name: Check if kubelet.conf exists
+  ansible.builtin.stat:
+    path: "/etc/kubernetes/kubelet.conf"
+  register: kubelet_conf
+
+- name: Debug available vars
+  ansible.builtin.debug:
+    msg: "Master hostvars: {{ hostvars[groups['vms_masters'] | first] | dict2items | selectattr('key', 'search', 'join|token') | list }}"
+
+- name: Join worker nodes
+  when: not kubelet_conf.stat.exists
+  ansible.builtin.shell:
+    cmd: |
+      kubeadm join {{ hostvars[groups['vms_masters'][0]].join_path.stdout }} \
+      --token {{ hostvars[groups['vms_masters'][0]].join_token.stdout }} \
+      --discovery-token-ca-cert-hash sha256:{{ hostvars[groups['vms_masters'][0]].discovery_token_ca_cert_hash.stdout }}
+
+
+#  --discovery-token-unsafe-skip-ca-verification
+
+- name: Kubelet enable
+  ansible.builtin.service:
+    name: kubelet
+    state: started
+    enabled: true

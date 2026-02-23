@@ -1,0 +1,6 @@
+---
+- name: Install worker nodes
+  hosts: vms_masters[0],vms_workers
+
+  roles:
+    - role: workers

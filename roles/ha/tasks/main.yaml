@@ -1,0 +1,47 @@
+---
+- name: Set Sysctl on all nodes
+  ansible.posix.sysctl:
+    name: "net.ipv4.ip_nonlocal_bind"
+    value: "1"
+    sysctl_set: true
+    state: present
+    ignoreerrors: true
+
+- name: Set keepalived.conf
+  ansible.builtin.template:
+    src: keepalived.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    mode: "0600"
+  reguster: keepalived_conf
+  notify: restart keepalived
+
+- name: Enable and start keepalived service
+  ansible.builtin.service:
+    name: keepalived
+    state: restarted
+    enabled: true
+
+- name: Set haproxy.cfg
+  ansible.builtin.template:
+    src: haproxy.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    mode: "0600"
+  reguster: haproxy_conf
+  notify: restart haproxy
+
+
+- name: Enable and start haproxy service
+  ansible.builtin.service:
+    name: haproxy
+    state: restarted
+    enabled: true
+
+- name: Install requarements from apt
+  ansible.builtin.apt:
+    pkg:
+      - keepalived
+      - haproxy
+    update_cache: true
+    state: present

@@ -1,0 +1,143 @@
+---
+- name: Load modules br_netfilter
+  community.general.modprobe:
+    name: br_netfilter
+
+- name: Load modules overlay
+  community.general.modprobe:
+    name: overlay
+
+- name: Load modules ip_vs
+  community.general.modprobe:
+    name: ip_vs
+
+- name: Load modules ip_vs_rr
+  community.general.modprobe:
+    name: ip_vs_rr
+
+- name: Load modules ip_vs_wrr
+  community.general.modprobe:
+    name: ip_vs_wrr
+
+- name: Load modules ip_vs_sh
+  community.general.modprobe:
+    name: ip_vs_sh
+
+- name: Load module k8s permanet
+  ansible.builtin.copy:
+    src: k8s.conf
+    dest: /etc/modules-load.d/k8s.conf
+    owner: root
+    mode: u=rw,g=r,o=r
+
+- name: Load module ipvs permanet
+  ansible.builtin.copy:
+    src: ipvs.conf
+    dest: /etc/modules-load.d/ipvs.conf
+    owner: root
+    mode: u=rw,g=r,o=r
+
+- name: Set Sysctl on all nodes
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - name: net.ipv4.ip_forward
+      value: 1
+    - name: net.bridge.bridge-nf-call-iptables
+      value: 1
+    - name: net.bridge.bridge-nf-call-ip6tables
+      value: 1
+    - name: vm.max_map_count # for opensearch & elasticserarch
+      value: 262144
+
+- name: Set Sysctl permanet on all nodes
+  ansible.builtin.copy:
+    src: 10-k8s.conf
+    dest: /etc/sysctl.d/10-k8s.conf
+    owner: root
+    mode: u=rw,g=r,o=r
+
+- name: Set crictl.yaml
+  ansible.builtin.template:
+    src: crictl.j2
+    dest: /etc/crictl.yaml
+    owner: root
+    mode: u=rw,g=r,o=r
+
+- name: Test swap
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      sudo swapon --show --noheadings | wc -l
+    executable: /bin/bash
+  register: swap_ret
+  changed_when: swap_ret != 0
+
+- name: If swap is enabled - disable it
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      sudo swapoff -a
+    executable: /bin/bash
+  register: swapoff_ret
+  when: swap_ret.stdout != "0"
+  changed_when: swapoff_ret != 0
+
+- name: Disable SWAP in fstab
+  when: swap_ret.stdout != "0"
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\s*swap\s*.*)$'
+    replace: '# \1'
+
+- name: Remove cdrom repository from sources list
+  ansible.builtin.replace:
+    path: /etc/apt/sources.list
+    regexp: '^([^#].*\s*cdrom\s*.*)$'
+    replace: '# \1'
+
+- name: Install requarements from apt
+  ansible.builtin.apt:
+    pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gpg
+      - gnupg
+      - ipvsadm
+      - net-tools
+      - iptables
+      - iproute2
+      - git
+      - nfs-common
+      - python3-yaml
+    update_cache: true
+    state: present
+
+- name: Install containerd pakage
+  when: cri == "containerd"
+  ansible.builtin.include_tasks: containerd.yaml
+
+- name: Install k8s files
+  block:
+
+    - name: Add Kubernetes APT repository
+      ansible.builtin.deb822_repository:
+        name: kubernetes
+        types: [deb]
+        uris: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/"
+        signed_by: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
+        suites: [/]
+        state: present
+        enabled: true
+
+    - name: Install k8s from apt
+      ansible.builtin.apt:
+        pkg:
+          - kubeadm
+          - kubelet
+          - kubectl
+        update_cache: true
+        state: present

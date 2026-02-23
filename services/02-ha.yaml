@@ -1,0 +1,6 @@
+---
+- name: Install HA on control nodes
+  hosts: vms_masters
+
+  roles:
+    - role: ha

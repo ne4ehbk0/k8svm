@@ -1,0 +1,6 @@
+---
+- name: Install control node
+  hosts: vms_masters[0]
+
+  roles:
+    - role: master

@@ -1,0 +1,30 @@
+---
+# Add link
+- name: Add directory for config file
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    mode: '0700'
+
+- name: Add link for config file
+  ansible.builtin.file:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    state: link
+
+- name: "Add {{ host_user }}`s directory for config file"
+  ansible.builtin.file:
+    path:  "/home/{{ host_user }}/.kube"
+    state: directory
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode:  "0775"
+
+- name: "Copy config file for {{ host_user }}"
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ host_user }}/.kube/config"
+    owner: "{{ host_user }}"
+    group: "{{ host_user }}"
+    mode: "0775"
+    remote_src: true

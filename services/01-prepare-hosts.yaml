@@ -1,0 +1,5 @@
+---
+- name: Prepare hosts
+  hosts: vms_cluster
+  roles:
+    - role: prepare-hosts

@@ -1,0 +1,6 @@
+---
+- name: Install Utils
+  hosts: vms_masters[0]
+
+  roles:
+    - role: utils

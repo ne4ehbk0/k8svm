@@ -1,0 +1,18 @@
+---
+vms_masters:
+  hosts:
+    vm-master.home.arpa:
+      ansible_host: 192.168.125.10
+      ansible_user: "{{ host_user }}"
+vms_workers:
+  hosts:
+    vm-worker-1.home.arpa:
+      ansible_host: 192.168.125.11
+      ansible_user: "{{ host_user }}"
+    vm-worker-2.home.arpa:
+      ansible_host: 192.168.125.12
+      ansible_user: "{{ host_user }}"
+vms_cluster:
+  children:
+    vms_masters:
+    vms_workers:

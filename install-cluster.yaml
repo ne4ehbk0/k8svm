@@ -1,0 +1,31 @@
+---
+- name: Checking for an odd nimber of nodes.
+  hosts: groups['vms_masters'][0]
+
+  tasks:
+    - name: Abort of an even number of nodes
+      ansible.builtin.debug:
+        msg: "Abort. An even number of nodes"
+      failed_when: groups['vms_masters'] | length | int is devisibleby 2
+
+- name: Install pakeges
+  hosts: vms_cluster
+  become: yes
+
+  roles:
+    - prepare-hosts
+
+- name: install master
+  hosts: vms_masters
+  become: yes
+
+  roles:
+    - role: master
+      when: inventory_hostname == groups['vms_masters'][0]
+
+- name: Install worker
+  hosts: vms_masters[0]:vms_workers
+  become: yes
+
+  roles:
+    - workers
