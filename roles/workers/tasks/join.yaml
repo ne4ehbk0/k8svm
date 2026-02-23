@@ -4,9 +4,9 @@
     path: "/etc/kubernetes/kubelet.conf"
   register: kubelet_conf
 
-- name: Debug available vars
-  ansible.builtin.debug:
-    msg: "Master hostvars: {{ hostvars[groups['vms_masters'] | first] | dict2items | selectattr('key', 'search', 'join|token') | list }}"
+# - name: Debug available vars
+#   ansible.builtin.debug:
+#     msg: "Master hostvars: {{ hostvars[groups['vms_masters'] | first] | dict2items | selectattr('key', 'search', 'join|token') | list }}"
 
 - name: Join worker nodes
   when: not kubelet_conf.stat.exists

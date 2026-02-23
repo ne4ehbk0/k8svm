@@ -55,19 +55,41 @@
   when: certManagerEnable
   block:
     - name: Add a cert-manager manifest
-      ansible.builtin.get_url:
-        url: https://github.com/cert-manager/cert-manager/releases/download/{{ certManagerVersion }}/cert-manager.yaml
-        dest: /etc/kubernetes/utils/cert-manager.yaml
-        mode: '0600'
-      register: cert_manager
-
-    - name: Apply manifest cert-manager
-      when: cert_manager.changed
-      ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/cert-manager.yaml
-
-    - name: Sorry, but I need sleep to 2 minutes. Wait cert manager running.
-      ansible.builtin.wait_for:
-        timeout: 120
+      ansible.builtin.shell: |
+        helm upgrade --install \
+        cert-manager oci://quay.io/jetstack/charts/cert-manager \
+        --version {{ certManagerVersion }} \
+        --namespace cert-manager \
+        --create-namespace \
+        --set crds.enabled=true \
+        --set global.priorityClassName=high-priority \
+        --set config.apiVersion="controller.config.cert-manager.io/v1alpha1" \
+        --set config.kind="ControllerConfiguration" \
+        --set config.enableGatewayAPI=true \
+        --wait
+      args:
+        creates: /tmp/cert-manager-installed
+      register: cert_manager_install
+      changed_when: |
+        "'STATUS: deployed' in cert_manager_install.stdout or
+        'upgraded' in cert_manager_install.stdout"
+# - name: Install cert-manager
+#   when: certManagerEnable
+#   block:
+#     - name: Add a cert-manager manifest
+#       ansible.builtin.get_url:
+#         url: https://github.com/cert-manager/cert-manager/releases/download/{{ certManagerVersion }}/cert-manager.yaml
+#         dest: /etc/kubernetes/utils/cert-manager.yaml
+#         mode: '0600'
+#       register: cert_manager
+#
+#    - name: Apply manifest cert-manager
+#      when: cert_manager.changed
+#      ansible.builtin.command: kubectl apply -f /etc/kubernetes/utils/cert-manager.yaml
+#
+#    - name: Sorry, but I need sleep to 2 minutes. Wait cert manager running.
+#      ansible.builtin.wait_for:
+#        timeout: 120
 
     - name: Add Issuer manifests
       ansible.builtin.copy:
@@ -138,25 +160,4 @@
       ansible.builtin.command: |
         kubectl -n metallb apply -f /etc/kubernetes/utils/mlb.yaml
       when: mlb_pool.changed
-
-### Cert-manager
-- name: Install cert-manager
-  ansible.builtin.shell: |
-    helm upgrade --install \
-    cert-manager oci://quay.io/jetstack/charts/cert-manager \
-    --version v1.19.2 \
-    --namespace cert-manager \
-    --create-namespace \
-    --set crds.enabled=true \
-    --set global.priorityClassName=high-priority \
-    --set config.apiVersion="controller.config.cert-manager.io/v1alpha1" \
-    --set config.kind="ControllerConfiguration" \
-    --set config.enableGatewayAPI=true \
-    --wait
-  args:
-    creates: /tmp/cert-manager-installed
-  register: cert_manager_install
-  changed_when: |
-    "'STATUS: deployed' in cert_manager_install.stdout or
-    'upgraded' in cert_manager_install.stdout"
 
