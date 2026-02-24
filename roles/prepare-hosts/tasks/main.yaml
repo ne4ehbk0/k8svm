@@ -107,6 +107,19 @@
     regexp: '^([^#].*\s*cdrom\s*.*)$'
     replace: '# \1'
 
+- name: Install Longhorn requirements.
+  block:
+
+    - name: Load modules
+      ansible.builtin.modprobe:
+        name: iscsi_tcp
+
+    - name: Load module permanet
+      ansible.builtin.copy:
+        src: modules-iscsi.conf
+        dest: /etc/modules-load.d/modules-iscsi.conf
+
+
 - name: Install requarements from apt
   ansible.builtin.apt:
     pkg:
@@ -123,8 +136,16 @@
       - nfs-common
       - python3-yaml
       - python3-kubernetes
+      - open-iscsi
+      - dmsetup
     update_cache: true
     state: present
+
+- name: iscsi service
+  ansible.builtin.service:
+    name: iscsid
+    state: started
+    enabled: yes
 
 - name: Install containerd pakage
   when: cri == "containerd"

@@ -40,6 +40,12 @@ nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.26.0"
 ## Change only if this IP is already taken.
 nodelocaldns_local_ip: 169.254.25.10
 
+### Longhorn
+
+longhornEnable: true
+longhornReplicaCount: 2
+longhornChartVersion: "1.11.0"
+
 ### GatewayAPI CDR
 GatewayAPICDRVersion: "v1.4.1"
 
