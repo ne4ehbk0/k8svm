@@ -1,4 +1,13 @@
 ---
+- name: Check if containerd config exists
+  ansible.builtin.stat:
+    path: /etc/containerd/config.toml
+  register: containerd_config
+
+- name: End play
+  ansible.builtin.meta: end_play
+  when: containerd_config.stat.exists
+
 - name: Add Docker Module Repository
   ansible.builtin.deb822_repository:
     name: docker
@@ -27,48 +36,33 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      sudo containerd config default | sudo tee /etc/containerd/config.toml > /deb/null
+      sudo containerd config default | sudo tee /etc/containerd/config.toml >/dev/null 2>&1
       grep version /etc/containerd/config.toml
     executable: /bin/bash
   register: config_rez
   changed_when: "current_version.stdout not in config_rez.stdout"
 
-- name: Check current SystemdCgroup value
-  ansible.builtin.shell:
-    cmd: |
-      grep 'SystemdCgroup = true' /etc/containerd/config.toml | cut -d '=' -f2 \
-      || echo "false"
-  register: current_cgroups_value
-  changed_when: false
 
 # - name: Add cgroup v2 [config.toml]
 #   ansible.builtin.shell:
 #     cmd: |
 #       set -o pipefail
-#       sudo sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml
+#       sudo sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml >/dev/null
 #       grep 'SystemdCgroup = true' /etc/containerd/config.toml | cut -d '=' -f2
 #     executable: /bin/bash
 #   register: cgroup_rez
-#   changed_when: cgroup_rez | trim == current_cgroups_value | trim
-#
+#   changed_when: cgroup_rez == " true"
+
 - name: Enable SystemdCgroup in containerd
   ansible.builtin.lineinfile:
     path: /etc/containerd/config.toml
     regexp: '^\s*SystemdCgroup\s*=\s*false'
     line: '            SystemdCgroup = true'
+    state: present
     backrefs: yes
-  register: containerd_config
-
-# - name: Show 'cgroup_rez'
-#   debug:
-#     msg: "The result in 'containerd_config_changed': {{ containerd_config_changed }}"
-
-- name: Check if containerd config exists
-  ansible.builtin.stat:
-    path: /etc/containerd/config.toml
 
 - name: Enable and start Containerd service
-  when: containerd_config.changed
+  when: "current_version.stdout not in config_rez.stdout"
   ansible.builtin.service:
     name: containerd
     state: restarted
