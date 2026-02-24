@@ -11,14 +11,12 @@
 - name: Install pakeges
   hosts: vms_cluster
   become: yes
-
   roles:
     - prepare-hosts
 
 - name: install master
   hosts: vms_masters
   become: yes
-
   roles:
     - role: master
       when: inventory_hostname == groups['vms_masters'][0]
@@ -26,6 +24,5 @@
 - name: Install worker
   hosts: vms_masters[0]:vms_workers
   become: yes
-
   roles:
     - workers

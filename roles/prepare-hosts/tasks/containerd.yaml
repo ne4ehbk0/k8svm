@@ -41,18 +41,34 @@
   register: current_cgroups_value
   changed_when: false
 
-- name: Add cgroup v2 [config.toml]
-  ansible.builtin.shell:
-    cmd: |
-      set -o pipefail
-      sudo sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml
-      grep 'SystemdCgroup = true' /etc/containerd/config.toml | cut -d '=' -f2
-    executable: /bin/bash
-  register: cgroup_rez
-  changed_when: cgroup_rez | trim != current_cgroups_value | trim
+# - name: Add cgroup v2 [config.toml]
+#   ansible.builtin.shell:
+#     cmd: |
+#       set -o pipefail
+#       sudo sed -i 's|SystemdCgroup = false|SystemdCgroup = true|' /etc/containerd/config.toml
+#       grep 'SystemdCgroup = true' /etc/containerd/config.toml | cut -d '=' -f2
+#     executable: /bin/bash
+#   register: cgroup_rez
+#   changed_when: cgroup_rez | trim == current_cgroups_value | trim
+#
+- name: Enable SystemdCgroup in containerd
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^\s*SystemdCgroup\s*=\s*false'
+    line: '            SystemdCgroup = true'
+    backrefs: yes
+  register: containerd_config
 
+# - name: Show 'cgroup_rez'
+#   debug:
+#     msg: "The result in 'containerd_config_changed': {{ containerd_config_changed }}"
+
+- name: Check if containerd config exists
+  ansible.builtin.stat:
+    path: /etc/containerd/config.toml
 
 - name: Enable and start Containerd service
+  when: containerd_config.changed
   ansible.builtin.service:
     name: containerd
     state: restarted
